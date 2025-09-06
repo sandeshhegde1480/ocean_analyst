@@ -33,7 +33,7 @@ def send_message(request):
 
         msg = Message.objects.create(room_name=room, user=user, content=content)
         print('Human message:', msg)
-        bot_reply = agent.implementor(message = msg)
+        bot_reply = agent.implementor(message = msg, user = request.user)
         bot_msg = Message.objects.create(room_name=room, user=None, content=bot_reply['content'])
         print(bot_msg)
         return JsonResponse({
