@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Analyst Dashboard</title>
+    <style>
+        /* Base Theme & Variables */
+        :root {
+            --bg-dark: #202123;
+            --bg-light-dark: #2b2c31;
+            --text-dark: #e0e0e0;
+            --text-dim-dark: #8e8e9b;
+            --primary-dark: #4e5055;
+            --secondary-dark: #3b3d42;
+            --send-btn-bg-dark: #10a37f;
+            --border-dark: #40414f;
+            --shadow-dark: 0 8px 30px rgba(0, 0, 0, 0.4);
+            --table-header-bg-dark: #484a54;
+            --table-row-bg-dark: #3d3e45;
+            --hover-dark: #5b5d63;
+
+            /* Light mode variables */
+            --bg-light: #f7f7f8;
+            --bg-light-light: #ffffff;
+            --text-light: #343541;
+            --text-dim-light: #6a6a7c;
+            --primary-light: #6c63ff;
+            --secondary-light: #e8eaf0;
+            --border-light: #dee2e9;
+            --border-light-light: #d0d5dc;
+            --shadow-light: 0 8px 30px rgba(0, 0, 0, 0.08);
+            --hover-light: #e0e4eb;
+        }
+
+        /* General Styles */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            line-height: 1.6;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        /* Mode-specific body styles */
+        body.dark-mode {
+            background-color: var(--bg-dark);
+            color: var(--text-dark);
+        }
+
+        body.light-mode {
+            background-color: var(--bg-light);
+            color: var(--text-light);
+        }
+
+        .dashboard-container {
+            display: flex;
+            height: 100vh;
+            max-width: 1400px;
+            margin: 0 auto;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: var(--shadow-dark);
+            transition: box-shadow 0.3s ease;
+        }
+        body.light-mode .dashboard-container {
+            box-shadow: var(--shadow-light);
+        }
+
+        .dashboard-panel {
+            flex: 1;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Left Panel - Datasets List */
+        .left-panel {
+            background-color: var(--bg-light-dark);
+            border-right: 1px solid var(--border-dark);
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+        }
+        body.light-mode .left-panel {
+            background-color: var(--bg-light-light);
+            border-right: 1px solid var(--border-light);
+        }
+
+        .left-panel h2 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .dataset-list {
+            list-style-type: none;
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+
+        .dataset-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-dark);
+            transition: background-color 0.2s ease, border-color 0.3s ease;
+            cursor: pointer;
+        }
+        body.light-mode .dataset-item {
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .dataset-item:hover {
+            background-color: var(--hover-dark);
+        }
+        body.light-mode .dataset-item:hover {
+            background-color: var(--hover-light);
+        }
+
+        .dataset-title {
+            font-weight: 500;
+        }
+
+        .dataset-status {
+            font-size: 0.8rem;
+            color: var(--text-dim-dark);
+        }
+        body.light-mode .dataset-status {
+            color: var(--text-dim-light);
+        }
+
+        /* Right Panel - User Dashboard */
+        .right-panel {
+            background-color: var(--secondary-dark);
+            transition: background-color 0.3s ease;
+        }
+        body.light-mode .right-panel {
+            background-color: var(--secondary-light);
+        }
+
+        .right-panel h2 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .dashboard-content {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            color: var(--text-dim-dark);
+            padding: 2rem;
+            transition: color 0.3s ease;
+        }
+        body.light-mode .dashboard-content {
+            color: var(--text-dim-light);
+        }
+
+        .dashboard-content h3 {
+            font-size: 1.8rem;
+            font-weight: 500;
+            margin-bottom: 1rem;
+        }
+
+        /* Fixed Button Container at the Bottom */
+        .bottom-buttons {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100%;
+            max-width: 1400px;
+            padding: 0 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            pointer-events: none;
+        }
+
+        .bottom-buttons > div {
+            pointer-events: auto;
+        }
+
+        .action-btn {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            border: none;
+            color: white;
+            font-size: 2rem;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: transform 0.2s ease, background-color 0.3s ease;
+        }
+
+        .action-btn:hover {
+            transform: scale(1.05);
+        }
+
+        .upload-btn {
+            background-color: var(--primary-dark);
+        }
+        body.light-mode .upload-btn {
+            background-color: var(--primary-light);
+        }
+
+        .chat-btn {
+            background-color: var(--send-btn-bg-dark);
+        }
+
+        #file-upload {
+            display: none;
+        }
+
+        /* Theme Toggle Button */
+        .theme-toggle-btn {
+            position: fixed;
+            top: 2rem;
+            right: 2rem;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: none;
+            background-color: var(--secondary-dark);
+            color: var(--text-dim-dark);
+            font-size: 1.5rem;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        body.light-mode .theme-toggle-btn {
+            background-color: var(--secondary-light);
+            color: var(--text-dim-light);
+        }
+
+        .theme-toggle-btn:hover {
+            transform: scale(1.05);
+        }
+
+    </style>
+</head>
+<body class="dark-mode">
+
+    <div class="dashboard-container">
+
+        <div class="dashboard-panel left-panel">
+            <h2>Datasets in Database</h2>
+            <ul class="dataset-list">
+              {% for i in datasets %}
+                <li class="dataset-item">
+                    <span class="dataset-title">{{i}}</span>
+                </li>
+              {% endfor %}
+            </ul>
+        </div>
+
+        <div class="dashboard-panel right-panel">
+            <h2>User Dashboard</h2>
+            <div class="dashboard-content">
+                <h3>Welcome, {{user}}</h3>
+                <p> Recent activities</p>
+                <br>
+                </div>
+        </div>
+
+    </div>
+
+    <div class="bottom-buttons">
+        <div class="upload-wrapper">
+            <input type="file" id="file-upload">
+            <label for="file-upload" class="action-btn upload-btn">
+                <span>📁</span>
+            </label>
+        </div>
+
+        <div class="chat-wrapper">
+            <button class="action-btn chat-btn" onclick="window.location.href='/chat/general'">
+                🌊
+            </button>
+        </div>
+    </div>
+
+    <button id="theme-toggle" class="theme-toggle-btn">
+        <span id="theme-icon">🌙</span>
+    </button>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const themeToggleBtn = document.getElementById('theme-toggle');
+        const themeIcon = document.getElementById('theme-icon');
+        const body = document.body;
+
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        body.classList.add(savedTheme + '-mode');
+        themeIcon.textContent = savedTheme === 'dark' ? '🌙' : '☀️';
+
+        themeToggleBtn.addEventListener('click', () => {
+            if (body.classList.contains('dark-mode')) {
+                body.classList.remove('dark-mode');
+                body.classList.add('light-mode');
+                themeIcon.textContent = '☀️';
+                localStorage.setItem('theme', 'light');
+            } else {
+                body.classList.remove('light-mode');
+                body.classList.add('dark-mode');
+                themeIcon.textContent = '🌙';
+                localStorage.setItem('theme', 'dark');
+            }
+        });
+    });
+</script>
+
+</body>
+</html>
