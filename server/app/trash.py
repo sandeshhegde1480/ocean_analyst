@@ -1,20 +1,51 @@
-General Information Columns:
-    • Date: The date when the data was recorded.
-    • Time: The time of day when the data was recorded, likely in seconds or milliseconds since a reference point.
-    •Id: Id of the row.
+def operation_analysis(self, message_: str, params: dict | None = None):
+    self.st_print('Entered operation_analysis')
+    # llm = OllamaLLM(model = 'gemma3:4b', temperature = 0)
+    llm = ChatGoogleGenerativeAI(model='gemini-2.5-pro', temperature=0)
+    self.chat_status = 1
+    template = """
+      You are an AI assistant. Analyse the following text and return as directed:
+      Text: {text}
+      The user is asking to analyse a dataset. You also given what are the details provided by the user so far (2nd in the references).
 
-    Pressure-Related Columns (in Bar):
-    • PT1(Bar) to PT12(Bar): These columns represent pressure measurements from various points in the system, possibly indicating pressures at different stages or components of the PTO system. The specific location of each pressure transducer (PT) would depend on the system's design.
-    • PT21(Bar): Another pressure measurement, which might be a critical pressure point within the system.
+      Directions:
+      Now, you need to update the values of {parameters} for the following and return the values as {parameter_structure}:
+      {parameter_definition}
 
-    Displacement and Angle-Related Columns:
-    • Zla1(mm), Zla2(mm), Zla3(mm): Vertical displacement measurements in millimeters, potentially from linear actuators or sensors monitoring vertical movement at different points.
-    • theta1(deg), theta2(deg), theta3(deg): Angular measurements in degrees, likely representing rotational positions or orientations of components within the PTO system.
+      references:
+      1. operation list: {operations}
+      2. previous given parameters: {params}
+      Note: Updating means replacing old values only if the user asks to. Otherwise add the new values to the previous. Carefully analyse.
+      """
+    prompt = PromptTemplate.from_template(template)
+    chain = prompt | llm
+    human_message = message_
+    response = chain.invoke(
+        {"text": human_message, "operations": operations, "params": params, "parameters": self.parameters,
+         "parameter_definition": parameter_definition, "parameter_structure": parameter_structure})
+    json_struct = None
+    if response:
+        if isinstance(response, str):
+            json_struct = response.strip().removeprefix("```json").removesuffix("```").strip()
+            json_struct = repair_json(json_struct)
 
-    Motion Reference Unit (MRU) Data (in degrees for rotations, meters for displacements):
-    • Roll(deg): The rotational angle around the longitudinal axis (front to back), representing the side-to-side tilt.
-    • Pitch(deg): The rotational angle around the transverse axis (side to side), representing the nose-up or nose-down tilt.
-    • Yaw(deg): The rotational angle around the vertical axis, representing the heading or rotation in the horizontal plane.
-    • Surge(m): The linear displacement along the longitudinal axis (forward/backward movement) in meters.
-    • Sway(m): The linear displacement along the transverse axis (sideways movement) in meters.
-    • Heave(m): The linear displacement along the vertical axis (up/down movement) in meters. Note that this column contains all null values in the provided sample.
+        parameters_ = json.loads(json_struct)
+        if parameters_:
+            self.parameters = parameters_
+            return self.requirement_handler(parameters_)
+        else:
+            return None
+
+
+
+
+
+
+
+
+
+
+
+
+
+

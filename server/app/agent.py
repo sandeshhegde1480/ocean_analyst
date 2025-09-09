@@ -4,11 +4,13 @@ from langchain.prompts import PromptTemplate
 import ast
 from termcolor import colored
 import json
-from . import analyser as imp
+from . import analyser as an
 import pandas.core.frame
 from langchain_ollama import OllamaLLM
 from json_repair import repair_json
 
+
+os.environ["GOOGLE_API_KEY"] = "AIzaSyANhgn6cUPYTwppan56gKUzHx8C8ZOUlTQ"
 # VARIABLES
 sentiment_dict = {
     'analyse': 'If the user asks to analyse the dataset(s), or asking for comparing two or more than two datasets or asks the details of the dataset(s) or anything meant to operate like min, plot etc., on datasets',
@@ -17,9 +19,9 @@ sentiment_dict = {
 operations = ['overall analysis', 'compare', 'min', 'max', 'dot-plot', 'bar-plot', 'box plot', 'pie chart', 'mean', 'median', 'mode', 'heatmap']
 
 parameter_definition = {
-    "dataframe_count": "The total number of dataframes. The value either can be None or can be a natural number (Example: 'dataframe_count': 2 or 'dataframe_count': 1 or 'dataframe_count': None). Count the total number of dataframes mentioned by the user text and update the value.",
-    "dataframes": "It is the list of the dataframes mentioned by the user text. The value either can be an empty python list or can be a python list of names of dataframes (Example: 'dataframes': [] or 'dataframe': ['dataframe1, dataframe2'......]). Carefully analyse the user text for the name of the dataset and/or dataframe and/or datasheet and/or similar.",
-    "operations": "It is the structured details of the operation, which the user asked for. The value can be empty list or list of dictionaries. If any operations are given by the user, among the given {operations}, update the value.",
+    "dataframe_count": "The total number of dataframes. The value either can be None or can be a natural number like 1,2,3,4.... (Example: 'dataframe_count': 2 or 'dataframe_count': 1 or 'dataframe_count': None). Count the total number of dataframes mentioned by the user text and update the value.",
+    "dataframes": "It is the list of name of the dataframes mentioned in the user text. The value either can be an empty python list or can be a python list of names of dataframes (Example: 'dataframes': [] or 'dataframe': ['dataframe1, dataframe2'......]). Carefully analyse the user text for the name(s) of the dataset and/or dataframe and/or datasheet and/or similar. Remember the name of the dataset is different from the word(s) 'dataset/dataframe/datasheet'. Consider if the user mentions the name explicitly",
+    "operations": "It is the structured details of all the operations, which the user asked for. The value can be empty list or list of dictionaries. If any operations are given by the user, among the given {operations}, update the value.",
     "operation_name": "It is a member of 'operations', which should hold the name of the operation. The value cannot be None if the user asks for any operations. ",
     "df": "It is the list of dictionaries, which contain the details of the dataframe mentioned by the user",
     "dataframe_name": "It is the name of the dataframe, which the user mentions for the corresponding operation. Either the value can be None or a string, i.e., the name of the dataframe.",
@@ -113,7 +115,8 @@ class Agent:
 
     def operation_analysis(self,message_: str,  params: dict | None = None):
         self.st_print('Entered operation_analysis')
-        llm = OllamaLLM(model = 'gemma3:4b', temperature = 0)
+        #llm = OllamaLLM(model = 'gemma3:4b', temperature = 0)
+        llm = ChatGoogleGenerativeAI(model = 'gemini-2.5-pro', temperature = 0)
         self.chat_status = 1
         template = """
           You are an AI assistant. Analyse the following text and return as directed:
@@ -121,21 +124,21 @@ class Agent:
           The user is asking to analyse a dataset. You also given what are the details provided by the user so far (2nd in the references).
           
           Directions:
-          Now, you need to update the values of {default_parameters} for the following and return the values as {parameter_structure}:
+          Now, you need to update the values of {parameters} for the following and return the values as {parameter_structure}:
           {parameter_definition}
         
           references:
           1. operation list: {operations}
           2. previous given parameters: {params}
+          Note: Updating means replacing old values only if the user asks to. Otherwise add the new values to the previous. Carefully analyse.
           """
         prompt = PromptTemplate.from_template(template)
         chain = prompt | llm
         human_message = message_
-        response = chain.invoke({"text": human_message, "operations": operations, "params": params, "default_parameters": default_parameters, "parameter_definition": parameter_definition, "parameter_structure": parameter_structure})
+        response = chain.invoke({"text": human_message, "operations": operations, "params": params, "parameters": self.parameters, "parameter_definition": parameter_definition, "parameter_structure": parameter_structure})
+        response = response.content
         json_struct = None
         if response:
-            print('Type of response: ', type(response))
-            print(response)
             if isinstance(response, str):
                 json_struct = response.strip().removeprefix("```json").removesuffix("```").strip()
                 json_struct = repair_json(json_struct)
@@ -149,10 +152,28 @@ class Agent:
 
     def requirement_handler(self,params: dict | None = None):
         self.st_print('Entered requirement handler --------------------')
+        print(params)
+        print(type(params))
         requirements_ = []
         if params:
-            pass
+            if params['dataframes']:
+                if params['operations']:
+                    operations_ = [params['operations'][i]['operation_name'] for i in range(len(params['operations']))]
+                    for i in range(len(operations_)):
+                        dataframes_ = [params['operations'][i]['df'][x]['dataframe_name'] for x in range(len(params['operations'][i]['df']))]
+                        columns_ = [params['operations'][i]['df'][x]['columns'] for x in range(len(params['operations'][i]['df']))]
+                        if operations_[i] == 'overall analysis':
+                            if not dataframes_:
+                                requirements_.append('dataframe')
+                        if operations_[i] == 'compare':
+                            if len(dataframes_)<2:
+                                requirements_.append('dataframes')
+                else:
+                    requirements_.append('operations')
+            else:
+                requirements_.append('dataframes')
         if requirements_:
+            self.rep_print(requirements_)
             req, quest = self.request_requirements(req=requirements_)
             return quest
         else:
@@ -183,28 +204,37 @@ class Agent:
         return response
 
     def operation_assigner(self,params: dict):
-        print(params)
-        self.sys_print('assigning')
-        directories = os.listdir(r"C:\Users\91827\Desktop\data\230927")
-        print('directories')
+        self.st_print('Assigning_operations --------------------------------')
         reports = {}
-        operations_ = [list(x.keys())[0] for x in params['opted_operation']]
+        operations_ = [params['operations'][i]['operation_name'] for i in range(len(params['operations']))]
         if 'overall analysis' in operations_:
-            dataframes = params['opted_operation'][operations_.index('overall analysis')]['overall analysis']
-            paths = []
-            for i in dataframes:
-                if i in directories:
-                    paths.append(os.path.abspath(i))
-            reports['overall analysis'] = imp.overall_analysis(paths)
-        if 'compare' in operations:
-            dataframes = params['opted_operation'][operations_.index('overall analysis')]['overall analysis']
-            paths = []
-            for i in dataframes:
-                if i in directories:
-                    paths.append(os.path.abspath(i))
-            reports['overall analysis'] = imp.overall_analysis(paths)
-        # columns = params['opted_operation'][operations_.index('overall analysis')]['overall analysis']['dataframes']
+            index = operations_.index('overall analysis')
+            for i in params['operations'][index]['df']:
+                path = self.fetch_paths(i['dataframe_name'])
+                if path:
+                    i['path'] = path
+                else:
+                    reply = f"No files named {i['dataframe_name']} found in the database"
+                    params['dataframes'].pop(params['dataframes'].index(i['dataframe_name']))
+                    i['dataframe_name'] = None
+                    self.parameters = params
+                    return reply
+            reports['overall_analysis'] = an.overall_analysis(params['operations'][index]['df'])
         return reports
+
+    import os
+
+    def fetch_paths(self, dataframe):
+        self.st_print('fetching path --------------------------------')
+        dir_ = r'H:\ocean analyst\server\app'
+        files = os.listdir(dir_)
+        print(files)
+
+        if dataframe in files:
+            path = os.path.join(dir_, dataframe)
+            return os.path.abspath(path)
+        else:
+            return None
 
     def implementor(self, message, user):
         bot_reply  = {'content' : [], 'type': ''}
@@ -225,13 +255,12 @@ class Agent:
             bot_reply['content'] = reply
 
         elif isinstance(reply, dict):
-            self.st_print(reply)
-            for i in reply.keys():
-                print(reply[i])
-                for x in reply[i].keys():
-                    bot_reply['content'].append(reply[i][x].to_html(classes="table table-striped", index=False))
-            bot_reply['type'] = 'list'
-
+            tables = []
+            keys = list(reply.keys())
+            if 'overall_analysis' in keys:
+                for i in reply['overall_analysis']:
+                    tables.append(i.to_html(classes="table table-striped", index=False))
+            bot_reply['content'] = tables
         else:
             bot_reply['type'] = 'list'
             bot_reply['content'] = ["Sorry, I got confused there 🤔"]

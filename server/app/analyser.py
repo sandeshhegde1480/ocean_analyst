@@ -31,22 +31,23 @@ def compare(path1, path2):
 
     return  {"common_columns": list(common_columns), "comparison": comparison}
 
-def overall_analysis(args = []):
-    print('overall analysis')
-    report = {}
-    count = 0
-    while args:
-        count += 1
-        df = pd.read_parquet(args[0])
-        args.pop(0)
-        cols, means, medians, mins, maxs = [], [], [], [], []
-        for col in df.columns:
+def overall_analysis(dataframes):
+    report = []
+    for x in dataframes:
+        cols, means, medians, mins, maxs = [], [],[], [], []
+        df = pd.read_parquet(f"{x['path']}")
+        columns = df.columns if 'all' in x['columns'] else x['columns']
+        for col in columns:
             if np.issubdtype(df[col].dtype, np.number):
                 cols.append(col)
-                means.append(df[col].mean())
-                medians.append(np.median(df[col]))
-                mins.append(np.min(df[col]))
-                maxs.append(np.max(df[col]))
-        report[f'dataframe_{count}'] = pd.DataFrame({'': [i+1 for i in range(len(cols))],'columns': cols, 'mean': means, 'median': medians, 'minimum': mins, 'maximum': maxs})
+                means.append(np.round(df[col].mean(), 2))
+                medians.append(np.round(np.median(df[col]), 2))
+                mins.append(np.round(np.min(df[col]), 2))
+                maxs.append(np.round(np.max(df[col]), 2))
+        data = {f"Overall analysis \non\n {x['dataframe_name']}": [i+1 for i in range(len(cols))],'columns': cols, 'Mean': means, 'Medians': medians, 'Minimum Value': mins, 'Maximum Value': maxs}
+        data = pd.DataFrame(data)
+
+        report.append(data)
+
     return report
 
