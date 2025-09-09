@@ -10,7 +10,7 @@ from langchain_ollama import OllamaLLM
 from json_repair import repair_json
 
 
-os.environ["GOOGLE_API_KEY"] = "AIzaSyANhgn6cUPYTwppan56gKUzHx8C8ZOUlTQ"
+os.environ["GOOGLE_API_KEY"] = "Your API key goes here"
 # VARIABLES
 sentiment_dict = {
     'analyse': 'If the user asks to analyse the dataset(s), or asking for comparing two or more than two datasets or asks the details of the dataset(s) or anything meant to operate like min, plot etc., on datasets',
